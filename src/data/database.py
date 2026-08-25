@@ -178,6 +178,10 @@ class Transaction(Base):
         default=datetime.utcnow,
     )
 
+    # JSON blob — used by generator to embed adversarial test metadata.
+    # Agent modules must NOT act on this field directly.
+    notes = Column(Text)
+
 
 # --------------------------------------------------
 # Triage results

@@ -178,9 +178,18 @@ class Transaction(Base):
         default=datetime.utcnow,
     )
 
-    # JSON blob — used by generator to embed adversarial test metadata.
-    # Agent modules must NOT act on this field directly.
+    # JSON blob — internal adversarial test metadata. Agent must NOT read this.
     notes = Column(Text)
+
+    # Phase 3 enrichment fields — every gate and triage agent reads these
+    customer_lifetime_value = Column(Float)          # ₹ total spend history
+    previous_successful_payments = Column(Integer, default=0)
+    previous_failed_payments = Column(Integer, default=0)
+    previous_recoveries = Column(Integer, default=0)
+    inferred_salary_window = Column(String(30))      # "1st-5th", "25th-31st", "6th-24th"
+    mandate_expiry = Column(DateTime)                # None unless subscription/mandate txn
+    order_notes = Column(Text)                       # customer-supplied — injection vector
+    preferred_language = Column(String(10))          # 'hi','en','ta','te','mr','bn'
 
 
 # --------------------------------------------------
@@ -612,6 +621,52 @@ class GroundTruth(GroundTruthBase):
         DateTime,
         default=datetime.utcnow,
     )
+
+
+# --------------------------------------------------
+# Eval holdout (30% split — lives in ground_truth.db)
+# Mirrors Transaction fields so eval harness can process
+# holdout records identically. Agent modules never see this.
+# --------------------------------------------------
+
+class EvalHoldout(GroundTruthBase):
+    __tablename__ = "eval_holdout"
+
+    id = Column(Integer, primary_key=True)
+
+    # Original IDs (denormalised — no FK across engines)
+    merchant_id = Column(Integer, nullable=False)
+    customer_id = Column(Integer, nullable=False)
+
+    razorpay_payment_id = Column(String(200), unique=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), default="INR")
+    payment_method = Column(String(50))
+    bank = Column(String(100))
+    failure_code = Column(String(100))
+    failure_reason = Column(Text)
+    status = Column(String(50), default="AT_RISK")
+
+    # Phase 3 enrichment fields (same as Transaction)
+    customer_lifetime_value = Column(Float)
+    previous_successful_payments = Column(Integer, default=0)
+    previous_failed_payments = Column(Integer, default=0)
+    previous_recoveries = Column(Integer, default=0)
+    inferred_salary_window = Column(String(30))
+    mandate_expiry = Column(DateTime)
+    order_notes = Column(Text)
+    preferred_language = Column(String(10))
+    opt_out_status = Column(Boolean, default=False)
+    margin_rate = Column(Float)
+
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Ground-truth oracle fields (pre-computed at generation time)
+    recoverable = Column(Boolean)
+    recovery_probability = Column(Float)
+    optimal_action = Column(String(50))
+
 
 
 # --------------------------------------------------

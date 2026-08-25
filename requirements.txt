@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+langchain
+langgraph
+anthropic
+razorpay
+sqlalchemy
+alembic
+pydantic
+httpx
+python-dotenv
+streamlit
+pandas
+numpy
+scipy
+pytest
+pytest-asyncio

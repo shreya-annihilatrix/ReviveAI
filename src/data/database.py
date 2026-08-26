@@ -589,6 +589,46 @@ class ComplianceLog(Base):
 
 
 # --------------------------------------------------
+# Eval results (triage confusion matrix storage)
+# --------------------------------------------------
+
+class EvalResult(Base):
+    __tablename__ = "eval_results"
+
+    id = Column(Integer, primary_key=True)
+
+    run_id = Column(String(100), nullable=False)    # UUID per eval run
+    txn_id = Column(String(100), nullable=False)    # str — may be "hld_N"
+    model_tier = Column(String(20))                 # "rules", "haiku", "sonnet"
+    true_label = Column(String(50), nullable=False)
+    predicted_label = Column(String(50), nullable=False)
+    confidence = Column(Float)
+    correct = Column(Boolean, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --------------------------------------------------
+# Cost log (LLM spend per call)
+# --------------------------------------------------
+
+class CostLog(Base):
+    __tablename__ = "cost_log"
+
+    id = Column(Integer, primary_key=True)
+
+    txn_id = Column(String(100))
+    model_tier = Column(String(20), nullable=False)   # "haiku", "sonnet"
+    model_name = Column(String(100), nullable=False)
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    cost_usd = Column(Float, default=0.0)
+    latency_ms = Column(Float, default=0.0)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --------------------------------------------------
 # Ground truth
 # --------------------------------------------------
 

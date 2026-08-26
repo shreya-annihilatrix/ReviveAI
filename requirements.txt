@@ -13,5 +13,7 @@ streamlit
 pandas
 numpy
 scipy
+matplotlib
+seaborn
 pytest
 pytest-asyncio

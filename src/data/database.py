@@ -629,6 +629,24 @@ class CostLog(Base):
 
 
 # --------------------------------------------------
+# Contextual Bandit Posteriors
+# --------------------------------------------------
+
+class BanditPosterior(Base):
+    __tablename__ = "bandit_posteriors"
+
+    id = Column(Integer, primary_key=True)
+
+    failure_class = Column(String(50), nullable=False)
+    arm = Column(String(100), nullable=False)
+    alpha = Column(Float, default=1.0, nullable=False)
+    beta = Column(Float, default=1.0, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# --------------------------------------------------
 # Ground truth
 # --------------------------------------------------
 

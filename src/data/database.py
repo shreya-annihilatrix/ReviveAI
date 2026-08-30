@@ -632,6 +632,14 @@ class CostLog(Base):
 # Contextual Bandit Posteriors
 # --------------------------------------------------
 
+class BanditLearningCurve(Base):
+    __tablename__ = "bandit_learning_curve"
+    
+    id = Column(Integer, primary_key=True)
+    batch_num = Column(Integer, nullable=False)
+    recovery_rate = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Ground truth
 # --------------------------------------------------
 

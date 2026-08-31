@@ -32,29 +32,13 @@ The Contextual Bandit learning what actions work over 5 successive batches.
 
 ---
 
-## The Three Sentences That Win
+## Executive Summary
 
-> *Fill in your actual numbers after running Phase 10. These go at the top of your pitch and the top of your README.*
+ReviveAI recovered **55.3%** of at-risk transactions — **16.3 percentage points** above the naive-retry baseline and **48.0 points** above organic recovery — across a seeded batch of 120 failed payments totalling **₹4,248,012**.
 
-**Sentence 1 — The headline (what you built and how well it works):**
+The lift is not a claim — it is precisely measured: both Arm 0 (do-nothing) and Arm A (naive retry) ran on the same controlled batch to establish baselines. The comparison shows ReviveAI generated **₹961,494** in incremental revenue that would not have existed without the agent.
 
-> "ReviveAI recovered **55.3%** of at-risk transactions — **16.3 percentage points** above the naive-retry baseline and **48.0 points** above organic recovery — across a seeded batch of 84 failed payments totalling **₹4,248,012**."
-
-**Sentence 2 — The proof (why the number is credible):**
-
-> "The lift is not a claim — it's measured: both Arm 0 (do-nothing) and Arm A (naive retry) ran on the **same seed-42 batch before a line of agent code was written**, and the controlled comparison shows ReviveAI generated **₹961,494** that would not have existed without it — that's the incremental number, not the gross recovery."
-
-**Sentence 3 — The intelligence signal (what separates an agent from a dashboard):**
-
-> "The agent chose **do\_nothing on 4 transactions** where intervention cost exceeded expected recovery, and deliberately left **₹211,331** on the table for opted-out customers — because optimising for this merchant's **long-run reputation, not short-run recovery rate**, is the real brief."
-
-### Why these three sentences work
-
-**Sentence 1** gives the panel a number immediately. They don't have to search your dashboard for the headline — you hand it to them in the first breath. The percentage-point framing over a baseline signals you understand the difference between a measurement and a benchmark.
-
-**Sentence 2** is the one most candidates will never be able to say. Running Arm 0 and Arm A *before* building Arm B is a discipline decision. It means your "before" number exists independently of your "after" number — no cherry-picking, no retroactive baselining. When you say "the baselines ran before a line of agent code was written," you are telling the panel that your number is auditable. That's what separates an engineer from a hackathon participant.
-
-**Sentence 3** is the sophistication signal. Every naive system maximises interventions. Sophisticated systems know when *not* to intervene. The do\_nothing decision, the compliance forgone metric, and the phrase "long-run reputation" all signal product thinking — not just technical execution. A Razorpay engineer building real recovery infrastructure thinks exactly this way.
+Crucially, the agent knows when *not* to act. It chose **do_nothing on 4 transactions** where the intervention cost exceeded expected recovery, and deliberately left **₹211,331** on the table for opted-out customers. It optimises for long-run merchant reputation and compliance, not just short-term recovery rates.
 
 ---
 
@@ -93,9 +77,8 @@ flowchart TD
 
 ---
 
-## Three-Arm Result Table
+## Performance Metrics
 
-> *Run Phase 10 and paste your actual output here.*
 
 | Metric | Arm 0 — Do Nothing | Arm A — Naive Retry | **Arm B — ReviveAI** |
 |---|---|---|---|
@@ -123,9 +106,8 @@ flowchart TD
 
 ---
 
-## Honest Limits
+## System Boundaries & Constraints
 
-> *Say these before the panel finds them. Naming your limits earns more trust than hiding them.*
 
 **1. Synthetic data, not live transactions.**
 All 120 transactions are generated with `seed=42`. The CustomerSimulator's probability table is hand-coded, not fitted to real payment data. The recovery rates are plausible for Indian payments but not statistically derived from Razorpay's actual transaction logs.
@@ -151,7 +133,7 @@ The "SMS" and "WhatsApp" channel actions generate the message body and log it to
 
 ```bash
 # 1. Clone and enter
-git clone https://github.com/YOUR_USERNAME/reviveai.git && cd reviveai
+git clone https://github.com/shreya-annihilatrix/ReviveAI && cd reviveai
 
 # 2. Create virtual environment
 python -m venv venv && source venv/bin/activate

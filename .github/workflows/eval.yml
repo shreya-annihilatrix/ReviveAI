@@ -1,0 +1,90 @@
+name: LLM Eval + Gate Tests
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  SEED: "42"
+  DB_PATH: "reviveai.db"
+  GT_DB_PATH: "ground_truth.db"
+  PYTHONPATH: "."
+
+jobs:
+  gate-tests:
+    name: Gate Tests (no LLM calls)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Seed database
+        run: python -m src.data.generator
+
+      - name: Run gate tests (8 required)
+        run: pytest tests/test_gates.py -v --tb=short
+
+  triage-eval:
+    name: Triage LLM Regression Eval
+    runs-on: ubuntu-latest
+    needs: gate-tests     # only run eval if gate tests pass
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Seed database (fresh, deterministic)
+        run: python -m src.data.generator
+
+      - name: Run triage cascade eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python tests/eval/triage_eval.py \
+            --assert-accuracy 0.70 \
+            --min-class-accuracy 0.50 \
+            --confusion-matrix \
+            --json > triage_eval_results.json
+          cat triage_eval_results.json
+
+      - name: Upload eval results as artifact
+        uses: actions/upload-artifact@v4
+        if: always()     # upload even on failure so you can debug
+        with:
+          name: triage-eval-results
+          path: triage_eval_results.json
+          retention-days: 30
+
+      - name: Assert accuracy threshold
+        run: |
+          python -c "
+          import json, sys
+          with open('triage_eval_results.json') as f:
+              r = json.load(f)
+          acc = r['overall_accuracy']
+          passed = r['passed']
+          print(f'Overall accuracy: {acc:.1%}')
+          print(f'Status: {\"PASS\" if passed else \"FAIL\"}')
+          sys.exit(0 if passed else 1)
+          "

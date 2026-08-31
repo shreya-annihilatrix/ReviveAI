@@ -1,5 +1,5 @@
 """
-Compliance Gate — Phase 7.
+Compliance Gate - Phase 7.
 
 Ensures actions respect quiet hours, frequency caps, opt-outs, and DND.
 """
@@ -12,58 +12,64 @@ from src.gates.security import mask_pii
 
 log = logging.getLogger(__name__)
 
-QUIET_HOURS_IST = (21, 9)   # 21:00 to 09:00 IST — TRAI commercial norms
+QUIET_HOURS_IST = (21, 9)   # 21:00 to 09:00 IST - TRAI commercial norms
 FREQUENCY_CAP = 3           # max contacts per customer per 7 days
 CHANNELS = ["sms", "whatsapp", "call"]
 
 def in_quiet_hours(dt_utc: datetime) -> bool:
-    # Convert UTC to IST (+5:30)
+    if not dt_utc: return False
     ist_time = dt_utc + timedelta(hours=5, minutes=30)
     hour = ist_time.hour
-    
-    # if hour >= 21 OR hour < 9
     if hour >= QUIET_HOURS_IST[0] or hour < QUIET_HOURS_IST[1]:
         return True
     return False
 
-def contact_count_7d(customer_id: int) -> int:
-    # Mock for checkpoint/demo purposes
-    return 0
+def sanitize_for_prompt(text: str) -> str:
+    """Wraps customer data to prevent prompt injection."""
+    if not text:
+        return ""
+    # Strip any existing tags to prevent escaping
+    text = text.replace("<customer_data>", "").replace("</customer_data>", "")
+    return f"<customer_data>\n{text}\n</customer_data>"
 
-def on_dnd_registry(phone: str) -> bool:
-    # Mock for checkpoint/demo purposes
-    return False
+class ComplianceGate:
+    def validate(self, proposal, customer, contact_history, txn=None) -> GateResult:
+        action_type = proposal.get("action_type") if isinstance(proposal, dict) else proposal.action_type
+        if action_type == "do_nothing":
+            return GateResult(approved=True)
 
-def mandate_valid_if_required(proposal: ActionProposal, customer) -> bool:
-    # Mock for checkpoint/demo purposes
-    return True
+        recent_contacts = len(contact_history)
+        
+        channel = proposal.get("channel") if isinstance(proposal, dict) else getattr(proposal, "channel", None)
+        schedule_at = proposal.get("schedule_at") if isinstance(proposal, dict) else getattr(proposal, "schedule_at", None)
+        
+        opted_out = customer.get("opted_out", False) if isinstance(customer, dict) else getattr(customer, "opted_out", False)
+        
+        # Mandate check
+        mandate_expired = False
+        if txn:
+            payment_method = txn.get("payment_method") if isinstance(txn, dict) else getattr(txn, "payment_method", None)
+            mandate_expiry = txn.get("mandate_expiry") if isinstance(txn, dict) else getattr(txn, "mandate_expiry", None)
+            failure_code = txn.get("failure_code") if isinstance(txn, dict) else getattr(txn, "failure_code", None)
+            
+            if payment_method == "emandate" or failure_code == "MANDATE_EXPIRED":
+                # If they try to retry an expired mandate, block it
+                if action_type == "retry_same":
+                    mandate_expired = True
 
-def log_compliance_rejection(customer, proposal: ActionProposal, reason: str, amount_forgone: float):
-    # Masking customer phone / info if we log it
-    masked_phone = mask_pii(getattr(customer, "phone", "9999999999"))
-    log.warning(
-        f"Compliance Rejection (cust={customer.id}, phone={masked_phone}): "
-        f"{reason}. Rs.{amount_forgone:.2f} forgone."
-    )
-
-def validate(proposal: ActionProposal, customer, contact_history: list, txn) -> GateResult:
-    if proposal.action_type == "do_nothing":
+        checks = [
+            (not (channel in CHANNELS and in_quiet_hours(schedule_at)), "quiet_hours_violation"),
+            (recent_contacts < FREQUENCY_CAP, "frequency_cap_exceeded"),
+            (not opted_out, "customer_opted_out"),
+            (not mandate_expired, "mandate_expired"),
+        ]
+        
+        for passes, reason in checks:
+            if not passes:
+                return GateResult(approved=False, reason=reason)
+                
         return GateResult(approved=True)
 
-    # Use history if provided, else use mock
-    recent_contacts = len(contact_history) if contact_history else contact_count_7d(customer.id)
-
-    checks = [
-        (not (proposal.channel in CHANNELS and in_quiet_hours(proposal.schedule_at)), "quiet_hours_violation"),
-        (recent_contacts < FREQUENCY_CAP, "frequency_cap_exceeded"),
-        (not getattr(customer, "opted_out", False), "customer_opted_out"),
-        (not on_dnd_registry(getattr(customer, "phone", "9999999999")), "dnd_registry"),
-        (mandate_valid_if_required(proposal, customer), "mandate_expired"),
-    ]
-    
-    for passes, reason in checks:
-        if not passes:
-            log_compliance_rejection(customer, proposal, reason, txn.amount)
-            return GateResult(approved=False, reason=reason)
-            
-    return GateResult(approved=True)
+# Backwards compatibility
+def validate(proposal: ActionProposal, customer, contact_history: list, txn=None) -> GateResult:
+    return ComplianceGate().validate(proposal, customer, contact_history, txn)

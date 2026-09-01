@@ -133,7 +133,8 @@ The "SMS" and "WhatsApp" channel actions generate the message body and log it to
 
 ```bash
 # 1. Clone and enter
-git clone https://github.com/shreya-annihilatrix/ReviveAI && cd reviveai
+git clone https://github.com/shreya-annihilatrix/ReviveAI.git
+cd ReviveAI
 
 # 2. Create virtual environment
 python -m venv venv && source venv/bin/activate
@@ -237,7 +238,7 @@ Writing to the outbox table in the same DB transaction as the state change means
 ## CI Badge
 
 ```
-![Gate Tests](https://github.com/YOUR_USERNAME/reviveai/actions/workflows/eval.yml/badge.svg)
+![Gate Tests](https://github.com/shreya-annihilatrix/ReviveAI/actions/workflows/eval.yml/badge.svg)
 ```
 
 ---

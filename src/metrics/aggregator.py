@@ -250,7 +250,7 @@ def run_metrics_comparison():
     gt_db = GroundTruthSessionLocal()
 
     transactions = _load_all_transactions(db, gt_db)
-    print(f"Loaded {len(transactions)} training transactions.\n")
+    print(f"Loaded {len(transactions)} transactions (84 training + 36 holdout).")
 
     # ── Arm 0 and Arm A ─────────────────────────────────────────────────────
     _reset_simulator_rng()

@@ -46,7 +46,7 @@ Run `python -m src.data.generator` then `python -m src.metrics.aggregator` to ge
 
 | Metric | Arm 0 — Do Nothing | Arm A — Naive Retry | **Arm B — ReviveAI** |
 |---|---|---|---|
-| Recovery rate | 7.5% | 37.5% | **40.0% (Batch 5 converged)** |
+| Recovery rate | 7.5% | 37.5% | **40.0% (Batch 5 snapshot)** |
 | Cold-start rate (Batch 1) | — | — | 27.5% |
 | Revenue recovered | Rs.1,68,895 | Rs.11,97,831 | **Rs.7,23,023+** |
 | Incremental vs Arm A | — | baseline | **+2.5pp (Batch 5)** |
@@ -65,7 +65,7 @@ Run `python -m src.data.generator` then `python -m src.metrics.aggregator` to ge
 | 2 | 30.8% | -6.7pp |
 | 3 | 35.8% | -1.7pp |
 | 4 | 39.2% | **+1.7pp** |
-| 5 (converged) | **40.0%** | **+2.5pp** |
+| 5 (Batch 5 Snapshot) | **40.0%** | **+2.5pp** |
 
 > **Why ReviveAI over Arm A?** Arm A applies one fixed rule to every transaction regardless of failure type. ReviveAI applies the right action per failure class — `reauth_flow` for mandate failures (68% recovery), `update_vpa_flow` for VPA errors (83%), `payment_method_update` for expired cards (82%), `split_payment` for limit breaches (68%). Arm A cannot improve. ReviveAI does.
 
@@ -107,7 +107,7 @@ flowchart TD
 
 ## The Four Bars From the Track Brief
 
-**1. Honest metrics** — Recovery rate is computed against a 120-transaction synthetic batch with known ground truth. Arm 0 and Arm A run on the same batch as controlled baselines. The 40.0% figure is the bandit's converged rate at Batch 5, not a cherry-picked run. Clone the repo and run two commands to reproduce it exactly.
+**1. Honest metrics** — Recovery rate is computed against a 120-transaction synthetic batch with known ground truth. Arm 0 and Arm A run on the same batch as controlled baselines. The 40.0% figure is the bandit's learning snapshot at Batch 5, not a cherry-picked run. Clone the repo and run two commands to reproduce it exactly.
 
 **2. Bounded workflow** — Max 2 retry attempts per transaction. Compliance gate enforces TRAI quiet hours (9pm–9am), frequency cap (max 3 contacts per customer per 24h), and DND opt-out status. `do_nothing` is a valid and sometimes chosen action when EV is negative.
 
@@ -123,7 +123,7 @@ flowchart TD
 
 **Razorpay test mode only.** Payment links and orders are created via the test API. No real money moves. The idempotency and state machine logic is production-grade, but the integration has not been tested against production rate limits or live bank responses.
 
-**Bandit cold-start is disclosed.** The Thompson Sampler starts with informed domain-knowledge priors (not blind Beta(1,1)) but still requires 3-4 batches to surpass the naive retry baseline. The cold-start rate (27.5% at Batch 1) is shown alongside the converged rate (40.0% at Batch 5) in the dashboard — not hidden.
+**Bandit cold-start is disclosed.** The Thompson Sampler starts with informed domain-knowledge priors (not blind Beta(1,1)) but still requires 3-4 batches to surpass the naive retry baseline. The cold-start rate (27.5% at Batch 1) is shown alongside the learning snapshot (40.0% at Batch 5) in the dashboard — not hidden.
 
 **LLM cost model is approximate.** The Rs.0.0004 per Rs.100 recovered figure uses Anthropic's published API pricing. Production batching and caching would reduce this further.
 
@@ -180,7 +180,7 @@ ReviveAI/
 │   ├── triage/
 │   │   └── cascade.py          # 3-tier triage (rules → Haiku → Sonnet)
 │   ├── strategy/
-│   │   ├── bandit.py           # Thompson Sampling contextual bandit
+│   │   ├── bandit.py           # Thompson Sampling failure-class contextual Thompson Sampling
 │   │   ├── ev_engine.py        # Expected value calculator
 │   │   └── playbook.py         # Deterministic rule playbook
 │   ├── gates/

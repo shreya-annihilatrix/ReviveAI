@@ -108,7 +108,8 @@ metrics = load_metrics()
 # ==============================================================================
 st.header("1. Batch Summary")
 st.markdown("Head-to-head comparison on the exact same 120 seeded transactions (seed=42). "
-            "All numbers are computed live from the database — nothing is hardcoded.")
+            "**Core batch metrics and learning curves are computed live from the seeded database; "
+            "selected demo/adversarial traces are statically represented for presentation.**")
 
 if metrics is None or metrics.get("needs_aggregator"):
     st.warning(

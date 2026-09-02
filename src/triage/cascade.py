@@ -90,6 +90,13 @@ def triage_transaction(txn_data: dict, db) -> dict:
     from src.triage import cache as triage_cache
     from src.triage import rules as triage_rules
     from src.triage.llm_triage import triage_with_llm
+    from src.gates.compliance_gate import sanitize_for_prompt
+
+    # Sanitize customer-supplied fields BEFORE they ever reach an LLM
+    if "order_notes" in txn_data:
+        txn_data["order_notes"] = sanitize_for_prompt(txn_data["order_notes"])
+    if "failure_reason" in txn_data:
+        txn_data["failure_reason"] = sanitize_for_prompt(txn_data["failure_reason"])
 
     fc  = txn_data.get("failure_code", "")
     pm  = txn_data.get("payment_method", "")

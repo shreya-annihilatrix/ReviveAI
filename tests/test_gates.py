@@ -28,7 +28,7 @@ def _proposal(**overrides) -> dict:
     base = {
         "action_type":  "payment_link",
         "amount":       1000.0,           # matches txn amount by default
-        "schedule_at":  datetime.now(timezone.utc) + timedelta(hours=2),
+        "schedule_at":  datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc), # Safe time (3:30 PM IST)
         "channel":      "sms",
         "message_body": "Please complete your payment",
         "rationale":    "Triage recommends payment link for VPA failure",

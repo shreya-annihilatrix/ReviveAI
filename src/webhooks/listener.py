@@ -89,13 +89,24 @@ async def razorpay_webhook(request: Request):
         if not txn:
             return {"status": "ok", "note": f"txn {txn_id} not found in db"}
 
-        # Fetch Bandit keys (mocking the arm retrieval for the demo)
-        # In a full system, you would query the Outbox or RecoveryAttempts for this txn
-        # to find exactly what arm was fired.
-        failure_class = "insufficient_funds" 
-        arm_id = "payment_link|immediate|any"
+        # 4. Fetch the real context for the Bandit learning loop
+        # Map Razorpay failure_code to Bandit failure_class
+        from src.metrics.aggregator import FAILURE_CLASS_MAP
+        fc = (txn.failure_code or "").upper()
+        failure_class = FAILURE_CLASS_MAP.get(fc, "unknown")
+        
+        # Get the actual action that was taken from the RecoveryAttempt table
+        from src.data.database import RecoveryAttempt
+        latest_attempt = db.query(RecoveryAttempt).filter_by(transaction_id=txn_id).order_by(RecoveryAttempt.attempt_no.desc()).first()
+        
+        if latest_attempt:
+            # Reconstruct the arm_id (defaulting timing/instrument to basic values if unknown)
+            # In a fully fleshed out system, the exact arm string would be stored in ExperimentArm
+            arm_id = f"{latest_attempt.action_type}|immediate|any"
+        else:
+            arm_id = "do_nothing|immediate|any"
 
-        # 4. Update state machine & posteriors
+        # 5. Update state machine & posteriors
         try:
             if event_type == "payment.captured":
                 transition(db, txn_id, "AWAITING_OUTCOME", "RECOVERED", metadata="Webhook success")

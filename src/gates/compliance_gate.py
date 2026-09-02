@@ -57,11 +57,14 @@ class ComplianceGate:
                 if action_type == "retry_same":
                     mandate_expired = True
 
+        # Order matters: absolute rules (opt-out, mandate) first,
+        # then timing rules (quiet hours), then rate limits.
+        # This ensures the most specific/permanent reason is always reported.
         checks = [
-            (not (channel in CHANNELS and in_quiet_hours(schedule_at)), "quiet_hours_violation"),
-            (recent_contacts < FREQUENCY_CAP, "frequency_cap_exceeded"),
-            (not opted_out, "customer_opted_out"),
-            (not mandate_expired, "mandate_expired"),
+            (not opted_out,                                                     "customer_opted_out"),
+            (not mandate_expired,                                                "mandate_expired"),
+            (not (channel in CHANNELS and in_quiet_hours(schedule_at)),         "quiet_hours_violation"),
+            (recent_contacts < FREQUENCY_CAP,                                   "frequency_cap_exceeded"),
         ]
         
         for passes, reason in checks:

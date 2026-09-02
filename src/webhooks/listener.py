@@ -17,18 +17,18 @@ app = FastAPI()
 
 WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "dummy_secret")
 
-def verify_signature(payload: bytes, signature: str, secret: str):
+def verify_signature(payload: bytes, signature: str, secret: str) -> None:
     """
     Verify the X-Razorpay-Signature HMAC-SHA256 signature.
+    Raises ValueError on any mismatch — prevents unauthenticated events from
+    being processed or stored.
     """
     if not signature:
-        print("Missing signature, ignoring for local mock tests")
-        return
-        
-    expected = hmac.new(secret.encode('utf-8'), payload, hashlib.sha256).hexdigest()
+        raise ValueError("Missing X-Razorpay-Signature header")
+
+    expected = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, signature):
-        print(f"Warning: Signature mismatch. Expected {expected}, got {signature}")
-        # raise ValueError("Invalid signature")  # uncomment for strict mode
+        raise ValueError(f"Invalid signature: HMAC mismatch")
 
 @app.post("/webhooks/razorpay")
 async def razorpay_webhook(request: Request):

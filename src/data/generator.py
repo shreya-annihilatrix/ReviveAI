@@ -583,7 +583,7 @@ if __name__ == "__main__":
     try:
         result = generate(main_db, gt_db)
 
-        print("\n[generator] ── Distribution check ──")
+        print("\n[generator] -- Distribution check --")
         rows = main_db.execute(
             text("SELECT failure_code, count(*) as n "
                  "FROM transactions GROUP BY failure_code ORDER BY n DESC")

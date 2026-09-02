@@ -12,10 +12,10 @@ from src.gates.models import GateResult
 log = logging.getLogger(__name__)
 
 ALLOWLIST = [
-    "retry", "payment_link", "split_payment", "sms_reminder", 
-    "whatsapp", "human_escalation", "do_nothing", 
+    "retry", "payment_link", "split_payment", "sms_reminder", "sms",
+    "whatsapp", "whatsapp_reminder", "human_escalation", "do_nothing",
     "payment_method_update", "reauth_mandate", "reauth_flow",
-    "wait_retry", "update_vpa_flow", "salary_window_retry", "whatsapp_reminder",
+    "wait_retry", "update_vpa_flow", "salary_window_retry",
     "retry_same"
 ]
 

@@ -7,6 +7,23 @@ from src.data.database import SessionLocal, Outbox, Transaction, init_db
 def _now():
     return datetime.now(timezone.utc)
 
+
+def get_pending_items(db, limit: int = 50):
+    """Return up to `limit` PENDING outbox rows in insertion order."""
+    return db.query(Outbox).filter_by(status="PENDING").order_by(Outbox.id).limit(limit).all()
+
+
+def mark_dispatched(db, item) -> None:
+    """Mark an outbox item as DISPATCHED."""
+    item.status = "DISPATCHED"
+    db.commit()
+
+
+def mark_failed(db, item) -> None:
+    """Mark an outbox item as FAILED."""
+    item.status = "FAILED"
+    db.commit()
+
 def dispatcher_loop():
     from src.execution.state_machine import transition
     from src.execution import razorpay_client

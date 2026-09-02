@@ -23,9 +23,28 @@ from datetime import datetime, timezone
 
 from src.data.database import Outbox, RecoveryAttempt
 from src.execution.outbox import get_pending_items, mark_dispatched, mark_failed
-from src.execution.razorpay_client import RazorpayClient
+import src.execution.razorpay_client as _rzp
 
 log = logging.getLogger(__name__)
+
+
+class RazorpayClient:
+    """
+    Thin adapter wrapping the module-level razorpay_client functions
+    so dispatcher can call client.dispatch(action_type, payload, key).
+    """
+    def dispatch(self, action_type: str, payload: dict, idempotency_key: str) -> dict:
+        try:
+            if action_type == "payment_link":
+                result = _rzp.create_payment_link(payload, idempotency_key)
+            elif action_type == "create_order":
+                result = _rzp.create_order(payload, idempotency_key)
+            else:
+                result = {"status": "mocked", "note": f"action {action_type} not wired to Razorpay"}
+            return {"success": True, **result}
+        except Exception as exc:
+            return {"success": False, "error": str(exc)}
+
 
 
 # ---------------------------------------------------------------------------

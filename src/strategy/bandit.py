@@ -34,23 +34,32 @@ class Arm(NamedTuple):
 
 # All arms the bandit considers
 ALL_ARMS: list[Arm] = [
-    Arm("payment_link",   "immediate",  "any"),
-    Arm("payment_link",   "short",      "any"),
-    Arm("payment_link",   "salary",     "any"),
-    Arm("payment_link",   "next_day",   "any"),
-    Arm("sms",            "immediate",  "any"),
-    Arm("sms",            "short",      "any"),
-    Arm("whatsapp",       "immediate",  "any"),
-    Arm("whatsapp",       "short",      "any"),
-    Arm("retry_same",     "immediate",  "upi"),
-    Arm("retry_same",     "short",      "upi"),
-    Arm("retry_same",     "immediate",  "card"),
-    Arm("retry_same",     "short",      "card"),
-    Arm("retry_same",     "immediate",  "netbanking"),
-    Arm("reauth_flow",    "immediate",  "emandate"),
-    Arm("split_payment",  "immediate",  "upi"),
-    Arm("split_payment",  "immediate",  "card"),
-    Arm("do_nothing",     "immediate",  "any"),
+    # Payment links
+    Arm("payment_link",          "immediate",  "any"),
+    Arm("payment_link",          "short",      "any"),
+    Arm("payment_link",          "salary",     "any"),
+    Arm("payment_link",          "next_day",   "any"),
+    # SMS / WhatsApp
+    Arm("sms",                   "immediate",  "any"),
+    Arm("sms",                   "short",      "any"),
+    Arm("whatsapp",              "immediate",  "any"),
+    Arm("whatsapp",              "short",      "any"),
+    # Retry
+    Arm("retry_same",            "immediate",  "upi"),
+    Arm("retry_same",            "short",      "upi"),
+    Arm("retry_same",            "immediate",  "card"),
+    Arm("retry_same",            "short",      "card"),
+    Arm("retry_same",            "immediate",  "netbanking"),
+    # Specialist actions (these are the high-probability arms per failure class)
+    Arm("reauth_flow",           "immediate",  "emandate"),   # MANDATE_EXPIRED → 68%
+    Arm("update_vpa_flow",       "immediate",  "any"),        # VPA_NOT_FOUND → 83%
+    Arm("payment_method_update", "immediate",  "any"),        # CARD_EXPIRED → 82%
+    Arm("retry_2h_window",       "short",      "any"),        # BANK_SERVER_DOWN → 74%
+    Arm("salary_window_retry",   "salary",     "any"),        # INSUFFICIENT_FUNDS → 61%
+    Arm("split_payment",         "immediate",  "upi"),        # LIMIT_EXCEEDED → 68%
+    Arm("split_payment",         "immediate",  "card"),
+    # Do nothing (explicit EV=0 baseline)
+    Arm("do_nothing",            "immediate",  "any"),
 ]
 
 # Map arm_id → Arm for fast lookup

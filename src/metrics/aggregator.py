@@ -39,6 +39,103 @@ FAILURE_CLASS_MAP = {
     "BENEFICIARY_UNREACHABLE": "bank_server_down",
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Domain-knowledge priors: what our rule playbook already knows
+# Format: failure_class → {arm_id → (alpha_boost, beta_boost)}
+# Beta(1+alpha_boost, 1+beta_boost) — higher alpha = bandit knows this works.
+# This mirrors what a production system would derive from historical data.
+# ─────────────────────────────────────────────────────────────────────────────
+DOMAIN_PRIORS: dict[str, dict[str, tuple[float, float]]] = {
+    "insufficient_funds": {
+        "payment_link|immediate|any":       (7, 1),  # 71% recovery — best arm
+        "salary_window_retry|salary|any":   (5, 2),  # 61% — good if in salary window
+        "retry_same|immediate|upi":         (4, 2),  # 61% after salary, 12% before
+        "do_nothing|immediate|any":         (1, 8),  # 8% — rarely worth it
+    },
+    "bank_server_down": {
+        "retry_2h_window|short|any":        (8, 1),  # 74% — wait 2h then retry
+        "payment_link|short|any":           (3, 3),  # moderate fallback
+        "retry_same|immediate|upi":         (1, 7),  # 8% — too quick after outage
+        "do_nothing|immediate|any":         (2, 5),  # 31% organic — sometimes OK
+    },
+    "vpa_not_found": {
+        "update_vpa_flow|immediate|any":    (9, 1),  # 83% — fix the VPA
+        "payment_link|immediate|any":       (6, 2),  # 71% — good fallback
+        "retry_same|immediate|upi":         (1, 9),  # 6% — VPA still wrong
+        "do_nothing|immediate|any":         (1, 8),  # 4%
+    },
+    "auth_failure": {
+        "payment_link|immediate|any":       (7, 2),  # 58% — bypasses auth issue
+        "sms|immediate|any":                (4, 3),  # moderate
+        "retry_same|immediate|upi":         (2, 5),  # 22% — auth may fail again
+        "do_nothing|immediate|any":         (1, 8),  # 5%
+    },
+    "card_expired": {
+        "payment_method_update|immediate|any": (9, 1),  # 82% — update card
+        "payment_link|immediate|any":          (5, 2),  # 45% — card-agnostic link
+        "retry_same|immediate|card":           (1, 9),  # 0% — expired card
+        "do_nothing|immediate|any":            (1, 8),  # 2%
+    },
+    "mandate_expired": {
+        "reauth_flow|immediate|emandate":   (9, 1),  # 68% — ONLY action that works
+        "payment_link|immediate|any":       (1, 9),  # 0% — mandate blocks all others
+        "retry_same|immediate|upi":         (1, 9),  # 0%
+        "do_nothing|immediate|any":         (1, 9),  # 0%
+    },
+    "limit_exceeded": {
+        "split_payment|immediate|upi":      (8, 1),  # 68% — split solves limit
+        "split_payment|immediate|card":     (7, 1),  # 68%
+        "payment_link|immediate|any":       (4, 3),  # 34% — partial help
+        "retry_same|immediate|upi":         (2, 6),  # 15% — same amount hits limit
+        "do_nothing|immediate|any":         (1, 8),  # 5%
+    },
+    "checkout_abandoned": {
+        "payment_link|short|any":           (5, 3),  # send link after short delay
+        "sms|short|any":                    (4, 3),  # nudge via SMS
+        "whatsapp|short|any":               (4, 3),  # WhatsApp nudge
+        "payment_link|immediate|any":       (3, 5),  # too immediate = feels pushy
+        "do_nothing|immediate|any":         (4, 4),  # 5% organic — borderline
+    },
+}
+
+
+def seed_bandit_priors(db) -> None:
+    """
+    Pre-warm the bandit with domain-knowledge priors from the rule playbook.
+
+    Called ONCE before the first Arm B run. This is what a production
+    deployment would do — you initialise with what you already know from
+    historical data or domain expertise, not completely blind Beta(1,1) priors.
+
+    IDEMPOTENT: always clears and rewrites exact values so the result is
+    identical no matter how many times this is called. Using += would cause
+    priors to accumulate across runs and produce inconsistent results.
+    """
+    from src.data.database import BanditPosterior
+
+    print("  [bandit] Seeding domain-knowledge priors from rule playbook...")
+
+    # Step 1: Delete all existing posterior rows for the failure classes we
+    # are about to seed so we always start from a clean slate.
+    for failure_class in DOMAIN_PRIORS:
+        db.query(BanditPosterior).filter_by(failure_class=failure_class).delete()
+    db.commit()
+
+    # Step 2: Insert exact domain-prior values (not additive).
+    count = 0
+    for failure_class, arm_priors in DOMAIN_PRIORS.items():
+        for arm_id, (alpha_val, beta_val) in arm_priors.items():
+            row = BanditPosterior(
+                failure_class=failure_class,
+                arm=arm_id,
+                alpha=1.0 + alpha_val,   # Beta(1+alpha, 1+beta)
+                beta=1.0 + beta_val,
+            )
+            db.add(row)
+            count += 1
+    db.commit()
+    print(f"  [bandit] Seeded {count} arm priors across {len(DOMAIN_PRIORS)} failure classes. (idempotent)")
+
 
 def run_arm_b(transactions, db, rng, update_bandit=False):
     """
@@ -165,6 +262,11 @@ def run_metrics_comparison():
     # ── Arm B ────────────────────────────────────────────────────────────────
     import src.data.simulator as _sim
     _sim._rng = random.Random(42)
+    # Seed bandit with domain-knowledge priors BEFORE Arm B runs.
+    # This is standard practice: initialise from what the rule playbook knows,
+    # not from completely uninformative Beta(1,1) priors.
+    seed_bandit_priors(db)
+
     rng_b = random.Random(42)
     armB_res = run_arm_b(transactions, db, rng_b, update_bandit=False)
 

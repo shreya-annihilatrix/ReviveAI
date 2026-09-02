@@ -16,7 +16,7 @@ ALLOWLIST = [
     "whatsapp", "whatsapp_reminder", "human_escalation", "do_nothing",
     "payment_method_update", "reauth_mandate", "reauth_flow",
     "wait_retry", "update_vpa_flow", "salary_window_retry",
-    "retry_same"
+    "retry_same", "retry_2h_window", "retry_delayed", "retry_quick",
 ]
 
 def now():

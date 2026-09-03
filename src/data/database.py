@@ -351,6 +351,9 @@ class TransactionState(Base):
 
     reason = Column(Text)
 
+    # SHA-256(txn_id:from_state:to_state:timestamp) - tamper-evident audit seal
+    compliance_hash = Column(String(64), nullable=True)
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow,
@@ -465,6 +468,11 @@ class AuditLog(Base):
     decision = Column(Text)
 
     metadata_json = Column(Text)
+
+    compliance_hash = Column(
+        String(64),
+        nullable=True,  # True for backward compatibility with old rows
+    )
 
     created_at = Column(
         DateTime,

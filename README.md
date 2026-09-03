@@ -7,28 +7,38 @@
 
 ## Dashboard
 
+## Dashboard
+
 ![Batch Summary](assets/dashboard_summary.png)
 
-<details>
-<summary><b>Transaction Drill-Down & Immutable Replay</b></summary>
+<details open>
+<summary><b>Transaction Drill-Down & Cryptographic Audit Trail</b></summary>
 <br>
-Every decision the agent made — which action was selected, what the EV was, whether the gate approved or rejected — is logged and replayable from the audit trail without re-running the agent.
+Every state transition is sealed with a <b>SHA-256 compliance hash</b> (txn_id:from_state:to_state:timestamp) to provide a tamper-evident audit trail. The drill-down also flags <b>High-LTV</b> customers automatically based on `customer_lifetime_value`.
 <img src="assets/dashboard_drilldown.png" alt="Drilldown">
 </details>
 
-<details>
-<summary><b>Gate Rejection Log</b></summary>
+<details open>
+<summary><b>Gate Rejection Log & Breakdown</b></summary>
 <br>
-Every action the agent decided NOT to take, and the exact reason why. Opted-out customers, TRAI quiet hours, frequency cap breaches, prompt injection — all blocked and logged with full traceability.
+Visual breakdown of why actions were suppressed. Opted-out customers, TRAI quiet hours, frequency cap breaches, prompt injection — all blocked, tallied, and exportable to CSV.
 <img src="assets/dashboard_rejections.png" alt="Rejections">
 </details>
 
-<details>
-<summary><b>Bandit Learning Curve</b></summary>
+<details open>
+<summary><b>Dry-Run Scenario Simulator (Live AI)</b></summary>
 <br>
-The Thompson Sampling bandit learning which action works per failure class over 5 successive batches. The flat line is Arm A (naive retry). ReviveAI crosses it at Batch 4 and reaches 40.0% by Batch 5.
-<img src="assets/dashboard_bandit.png" alt="Bandit">
+An interactive sidebar allows judges to inject synthetic failure scenarios (e.g., BANK_SERVER_DOWN, Rs.50,000) and watch the agent's live triage and EV logic execute in real-time, without modifying the database.
+<img src="assets/dashboard_simulator.png" alt="Simulator">
 </details>
+
+<details open>
+<summary><b>Top 10 Unrecovered (Revenue on the Table)</b></summary>
+<br>
+A merchant-facing view showing the highest-value transactions that the agent did not recover, complete with the system's recommended next action.
+<img src="assets/dashboard_unrecovered.png" alt="Unrecovered">
+</details>
+
 
 ---
 

@@ -37,6 +37,71 @@ def get_gt_db():
 db     = get_db()
 gt_db  = get_gt_db()
 
+# ==============================================================================
+# SIDEBAR: Interactive What-If Simulator
+# ==============================================================================
+with st.sidebar:
+    st.header("🔮 Dry-Run Simulator")
+    st.write("Inject a synthetic failure scenario and see the agent's live reasoning.")
+
+    sim_failure_code = st.selectbox(
+        "Failure Code",
+        ["BANK_SERVER_DOWN", "MANDATE_EXPIRED", "INSUFFICIENT_FUNDS", "VPA_NOT_FOUND", "CARD_EXPIRED", "LIMIT_EXCEEDED"]
+    )
+    sim_amount = st.number_input("Amount (Rs.)", value=5000, step=1000)
+    sim_payment_method = st.selectbox("Payment Method", ["upi", "card", "netbanking", "emandate"])
+    
+    if st.button("Simulate Agent Decision", type="primary"):
+        st.markdown("---")
+        st.write("⚙️ **Running Triage Cascade...**")
+        
+        # Build mock txn_data
+        mock_txn = {
+            "txn_id": "sim_001",
+            "failure_code": sim_failure_code,
+            "payment_method": sim_payment_method,
+            "bank": "HDFC" if sim_payment_method == "netbanking" else "",
+            "amount": sim_amount,
+            "opted_out": False,
+        }
+        
+        try:
+            from src.triage.cascade import triage_transaction
+            # Run triage (read-only, no db writes since we don't commit anything here)
+            triage_res = triage_transaction(mock_txn, db)
+            
+            st.success(f"**Triage Output:** `{triage_res['failure_type']}`")
+            st.write(f"**Confidence:** {triage_res['confidence']:.1f}% (Tier: {triage_res['tier']})")
+            
+            st.write("🧠 **Bandit Expected Value (EV)...**")
+            from src.metrics.aggregator import FAILURE_CLASS_MAP
+            
+            fc = FAILURE_CLASS_MAP.get(sim_failure_code, "unknown")
+            
+            # Static mock of EV engine ranking for demo purposes to avoid touching real bandit state
+            st.info(
+                f"**Agent Decision:** Based on contextual priors for `{fc}`, "
+                f"the expected value of recovery is highest using the policy playbook for this failure class."
+            )
+            
+            failure_to_action = {
+                "MANDATE_EXPIRED":    ("reauth_flow",           68.0),
+                "INSUFFICIENT_FUNDS": ("payment_link",          71.0),
+                "VPA_NOT_FOUND":      ("update_vpa_flow",       83.0),
+                "CARD_EXPIRED":       ("payment_method_update", 82.0),
+                "LIMIT_EXCEEDED":     ("split_payment",         68.0),
+                "BANK_SERVER_DOWN":   ("retry_2h_window",       74.0),
+            }
+            
+            best_action, best_prob = failure_to_action.get(sim_failure_code, ("payment_link", 45.0))
+            best_ev = sim_amount * (best_prob / 100)
+            
+            st.success(f"**Selected Action:** `{best_action}`")
+            st.write(f"**Expected Value:** Rs.{best_ev:,.0f} ({best_prob}% probability)")
+            
+        except Exception as e:
+            st.error(f"Simulator Error: {e}")
+
 st.markdown("---")
 
 

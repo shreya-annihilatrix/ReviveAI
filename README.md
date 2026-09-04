@@ -103,7 +103,7 @@ flowchart TD
     J --> K[Webhook Listener\ndedupe by event_id\nsignature enforced]
     K --> L[State Machine\nAT_RISK to RECOVERED]
     L --> M[Bandit Posterior\nThompson Sampling]
-    L --> N[Audit Log\nfull trace + replay]
+    L --> N[Audit Log\nSHA-256 cryptographic seal\nfull trace + replay]
 
     subgraph Eval
         O[Arm 0 Do-Nothing]

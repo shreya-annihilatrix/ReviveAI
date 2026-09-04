@@ -124,6 +124,8 @@ Rules:
 
 
 def _build_user_prompt(txn_data: dict) -> str:
+    from src.gates.compliance_gate import sanitize_for_prompt
+    safe_notes = sanitize_for_prompt(txn_data.get('order_notes', 'none') or 'none')
     return f"""Triage this failed payment transaction:
 
 Transaction ID      : {txn_data.get('txn_id', 'N/A')}
@@ -139,7 +141,7 @@ Prev Recoveries     : {txn_data.get('previous_recoveries', 0)}
 Salary Window       : {txn_data.get('inferred_salary_window', 'unknown')}
 Mandate Expiry      : {txn_data.get('mandate_expiry', 'N/A')}
 Customer Opted Out  : {txn_data.get('opted_out', False)}
-Order Notes         : {txn_data.get('order_notes', 'none')}
+Order Notes         : {safe_notes}
 
 Call submit_triage with your structured diagnosis."""
 

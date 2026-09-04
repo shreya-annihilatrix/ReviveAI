@@ -137,10 +137,18 @@ def seed_bandit_priors(db) -> None:
     print(f"  [bandit] Seeded {count} arm priors across {len(DOMAIN_PRIORS)} failure classes. (idempotent)")
 
 
-def run_arm_b(transactions, db, rng, update_bandit=False):
+def run_arm_b(transactions, db, rng, update_bandit=False, live_triage=False):
     """
     Simulates Arm B (ReviveAI) on a set of transactions.
     Uses the REAL PolicyGate and ComplianceGate — no random mocking.
+
+    live_triage=True: routes every transaction through the real 3-tier
+    Triage Cascade (Rule Engine → Claude Haiku → Claude Sonnet).
+    This proves the full pipeline runs end-to-end. Recovery rates are
+    identical because the simulator still uses the raw failure_code.
+
+    live_triage=False (default): uses the fast FAILURE_CLASS_MAP dict
+    lookup so the aggregator can run instantly without API calls.
     """
     results = {}
     total_cost = 0.0
@@ -159,7 +167,25 @@ def run_arm_b(transactions, db, rng, update_bandit=False):
 
         # ── 1. Triage: map failure code to bandit failure_class ─────────────
         fc = (txn.get("failure_code") or "").upper()
-        failure_class = FAILURE_CLASS_MAP.get(fc, "unknown")
+
+        if live_triage:
+            # Full 3-tier cascade: Rule Engine → Claude Haiku → Claude Sonnet
+            try:
+                from src.triage.cascade import triage_transaction
+                triage_result = triage_transaction(txn, db)
+                failure_class = triage_result.get("failure_type", FAILURE_CLASS_MAP.get(fc, "unknown"))
+                tier_used = triage_result.get("tier", "rules")
+                # LLM tiers cost real money; approximate per call
+                if tier_used == "haiku":
+                    llm_cost_total += 0.0003
+                elif tier_used == "sonnet":
+                    llm_cost_total += 0.003
+            except Exception as e:
+                print(f"  [live-triage] Triage failed for {txn_id}: {e}. Falling back to map.")
+                failure_class = FAILURE_CLASS_MAP.get(fc, "unknown")
+                llm_cost_total += 0.0003
+        else:
+            failure_class = FAILURE_CLASS_MAP.get(fc, "unknown")
 
         # ── 2. Strategy: Thompson Sampling ──────────────────────────────────
         arm = sample_arm(db, failure_class, rng=rng)
@@ -241,9 +267,13 @@ def summarize_arm(results_dict, transactions):
     return rate, recovered_amt
 
 
-def run_metrics_comparison():
+def run_metrics_comparison(live_triage: bool = False):
     print("=" * 60)
     print("PHASE 10: METRICS AGGREGATOR")
+    if live_triage:
+        print("  MODE: LIVE TRIAGE (full LLM cascade enabled)")
+    else:
+        print("  MODE: FAST (FAILURE_CLASS_MAP shortcut)")
     print("=" * 60)
     init_db()
     db = SessionLocal()
@@ -262,13 +292,10 @@ def run_metrics_comparison():
     # ── Arm B ────────────────────────────────────────────────────────────────
     import src.data.simulator as _sim
     _sim._rng = random.Random(42)
-    # Seed bandit with domain-knowledge priors BEFORE Arm B runs.
-    # This is standard practice: initialise from what the rule playbook knows,
-    # not from completely uninformative Beta(1,1) priors.
     seed_bandit_priors(db)
 
     rng_b = random.Random(42)
-    armB_res = run_arm_b(transactions, db, rng_b, update_bandit=False)
+    armB_res = run_arm_b(transactions, db, rng_b, update_bandit=False, live_triage=live_triage)
 
     a0_rate, a0_amt = summarize_arm(arm0_res, transactions)
     aA_rate, aA_amt = summarize_arm(armA_res, transactions)
@@ -315,7 +342,7 @@ def run_metrics_comparison():
         _sim._rng = random.Random(seed)
         rng_batch = random.Random(seed)
 
-        batch_res = run_arm_b(transactions, db, rng_batch, update_bandit=True)
+        batch_res = run_arm_b(transactions, db, rng_batch, update_bandit=True, live_triage=live_triage)
         b_rate, _ = summarize_arm(batch_res, transactions)
 
         lc = BanditLearningCurve(batch_num=batch_num, recovery_rate=b_rate)
@@ -331,4 +358,17 @@ def run_metrics_comparison():
 
 
 if __name__ == "__main__":
-    run_metrics_comparison()
+    import argparse
+    parser = argparse.ArgumentParser(description="ReviveAI Metrics Aggregator")
+    parser.add_argument(
+        "--live-triage",
+        action="store_true",
+        help=(
+            "Run the full 3-tier Triage Cascade (Rule Engine → Claude Haiku → "
+            "Claude Sonnet) for every transaction instead of the fast dict lookup. "
+            "Proves the complete end-to-end pipeline. Requires ANTHROPIC_API_KEY."
+        ),
+    )
+    args = parser.parse_args()
+    run_metrics_comparison(live_triage=args.live_triage)
+

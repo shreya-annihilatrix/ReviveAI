@@ -8,6 +8,21 @@ def _now():
     return datetime.now(timezone.utc)
 
 
+
+def create_outbox_item(db, transaction_id: int, recovery_attempt_id: int, action_type: str, payload: str):
+    from src.data.database import Outbox
+    item = Outbox(
+        transaction_id=transaction_id,
+        recovery_attempt_id=recovery_attempt_id,
+        action_type=action_type,
+        payload=payload,
+        status='PENDING',
+        created_at=_now()
+    )
+    db.add(item)
+    db.commit()
+    return item
+
 def get_pending_items(db, limit: int = 50):
     """Return up to `limit` PENDING outbox rows in insertion order."""
     return db.query(Outbox).filter_by(status="PENDING").order_by(Outbox.id).limit(limit).all()
@@ -126,4 +141,4 @@ if __name__ == "__main__":
         except Exception as e:
             print("Razorpay API Error:", e)
         finally:
-            db.close()
+            db.close()

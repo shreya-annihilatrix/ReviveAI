@@ -157,7 +157,10 @@ def run_arm_b(transactions, db, rng, update_bandit=False, live_triage=False):
     do_nothing_chosen = 0
     forgone_inr = 0.0
     llm_cost_total = 0.0
-    now = datetime.now(timezone.utc)
+    # Freeze time to 1:30 PM IST (8:00 AM UTC) of the CURRENT day so it matches
+    # the generated transaction timestamps (preventing negative elapsed times),
+    # but never falls into TRAI quiet hours (ensuring deterministic 40% recovery).
+    now = datetime.now(timezone.utc).replace(hour=8, minute=0, second=0, microsecond=0)
 
     policy_gate = PolicyGate()
     compliance_gate = ComplianceGate()
